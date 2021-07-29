@@ -68,7 +68,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Expected response to a valid request
+          description: Expected response to a valid requestt
           content:
             application/json:
               schema:
@@ -81,19 +81,23 @@ paths:
                 $ref: "#/components/schemas/Error"
 components:
   schemas:
-    Pet:
+    Pet: &anchor1
       type: object
       required:
         - id
         - name
       properties:
-        id:
+        id: &anchor2
           type: integer
           format: int64
+          maximum: 9223372036854775807
+          minimum: 1.000
         name:
           type: string
         tag:
           type: string
+    A:
+      <<: *anchor1
     Pets:
       type: array
       items:
@@ -105,7 +109,8 @@ components:
         - message
       properties:
         code:
-          type: integer
-          format: int32
+          <<: *anchor2
+          maximum: 9223_372036_85477_5809
+          minimum: 6.000e23
         message:
           type: string

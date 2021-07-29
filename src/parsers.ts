@@ -1,41 +1,58 @@
 import * as vscode from "vscode";
-import * as yaml from "js-yaml";
-import * as json from "jsonc-parser";
-import { parse, Node } from "@xliic/openapi-ast-node";
+//import * as yaml from "js-yaml";
+import * as yaml from "yaml-language-server-parser";
+//import * as json from "jsonc-parser";
+import { parse, Node, YamlNode } from "@xliic/openapi-ast-node";
 import { ParserOptions } from "./parser-options";
 import { OpenApiVersion } from "./types";
 
-export function parseToObject(
-  document: vscode.TextDocument,
-  options: ParserOptions
-): any | undefined {
-  if (
-    !(
-      document.languageId === "json" ||
-      document.languageId === "jsonc" ||
-      document.languageId == "yaml"
-    )
-  ) {
-    return null;
-  }
+export function parseAstToObject(root: Node): any {
+  return dfs(root);
+}
 
-  try {
-    if (document.languageId === "yaml") {
-      // FIXME what's up with parsing errors?
-      const {
-        yaml: { schema },
-      } = options.get();
-      return yaml.safeLoad(document.getText(), { schema });
-    }
+function dfs(node: Node): any {
 
-    const errors: json.ParseError[] = [];
-    const parsed = json.parse(document.getText(), errors, { allowTrailingComma: true });
-    if (errors.length == 0) {
-      return parsed;
+  if (node.isObject()) {
+    const result = {};
+    for (const child of node.getChildren()) {
+      if (isYamlAnchorMergeNode(child)) {
+        const innerNode = (<yaml.YAMLScalar>(<YamlNode>child).node);
+        const value = (<yaml.YAMLNode>innerNode).value;
+        Object.assign(result, dfs(new YamlNode(value.value)));
+      } else {
+        result[child.getKey()] = dfs(child);
+      }
     }
-  } catch (ex) {
-    // ignore, return undefined on parsing errors
+    return result;
+  } 
+  else if (node.isArray()) {
+    const result = [];
+    for (const child of node.getChildren()) {
+      result.push(dfs(child));
+    }
+    return result;
   }
+  else {
+    if (node instanceof YamlNode) {
+      const innerNode = (<yaml.YAMLScalar>(<YamlNode>node).node);
+      const value = (<yaml.YAMLNode>innerNode).value;
+      if (value.valueObject !== undefined) {
+        return value.valueObject;
+      }
+    }
+    return node.getValue();
+  }
+}
+
+function isYamlAnchorMergeNode(node: Node): boolean {
+  if ((node instanceof YamlNode) && (node.getKey() === "<<")) {
+    const innerNode = (<yaml.YAMLScalar>(<YamlNode>node).node);
+    const value = (<yaml.YAMLNode>innerNode).value;
+    if (value.kind === yaml.Kind.ANCHOR_REF) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function parseToAst(

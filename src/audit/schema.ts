@@ -224,7 +224,7 @@ function addToOneOf(oneOf: Array<ArraySchema>, schema: ArraySchema): void {
   oneOf.push(schema);
 }
 
-function isEqual(o1: any, o2: any): boolean {
+export function isEqual(o1: any, o2: any): boolean {
   if (o1 === o2) {
     return true;
   }
